@@ -1,4 +1,4 @@
-# Find-Each-Other
+# Find Each Other
  
 A mono repository, dedicated to an application built on a backend, mobile and database wrapped in a docker to run in a local environment.
 
