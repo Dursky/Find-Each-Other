@@ -1,12 +1,17 @@
-import User, {IUser} from "../src/models/User"
+import dotenv from "dotenv"
+dotenv.config()
+
+import supertest from "supertest"
 import mongoose from "mongoose"
 import {MongoMemoryServer} from "mongodb-memory-server"
+import app from "../src//app"
+import User from "../src/models/User"
 
 let mongoServer: MongoMemoryServer
 
 beforeAll(async () => {
 	mongoServer = await MongoMemoryServer.create()
-	const uri = mongoServer.getUri()
+	const uri = process.env.MONGO_URI || mongoServer.getUri()
 	await mongoose.connect(uri)
 })
 
@@ -15,32 +20,68 @@ afterAll(async () => {
 	await mongoServer.stop()
 })
 
-describe("User Model Test", () => {
-	it("create & save user successfully", async () => {
-		const userData = {username: "testuser", email: "test@test.com", password: "123456"}
-		const validUser = new User(userData)
-		const savedUser = await validUser.save()
+beforeEach(async () => {
+	await User.deleteMany({})
+})
 
-		expect(savedUser._id).toBeDefined()
-		expect(savedUser.username).toBe(userData.username)
-		expect(savedUser.email).toBe(userData.email)
-		expect(savedUser.password).toBeDefined()
+describe("User API Test", () => {
+	it("register a user successfully", async () => {
+		const res = await supertest(app).post("/api/register").send({
+			username: "testuser",
+			email: "test@test.com",
+			password: "123456",
+		})
+		expect(res.statusCode).toBe(201)
+		expect(res.body).toHaveProperty("token")
 	})
 
-	it("should hash the password before saving", async () => {
-		const userData = {username: "testuser2", email: "test2@test.com", password: "123456"}
-		const validUser = new User(userData)
-		await validUser.save()
+	it("login a user successfully", async () => {
+		const user = new User({
+			username: "testuser2",
+			email: "test2@test.com",
+			password: "123456",
+		})
+		await user.save()
 
-		expect(validUser.password).not.toBe(userData.password)
+		const res = await supertest(app).post("/api/login").send({
+			email: "test2@test.com",
+			password: "123456",
+		})
+
+		expect(res.statusCode).toBe(200)
+		expect(res.body).toHaveProperty("token")
 	})
 
-	it("should compare password correctly", async () => {
-		const userData = {username: "testuser3", email: "test3@test.com", password: "123456"}
-		const validUser = new User(userData)
-		await validUser.save()
+	it("should not register a user with existing email", async () => {
+		const user = new User({
+			username: "testuser3",
+			email: "test@test.com",
+			password: "123456",
+		})
+		await user.save()
 
-		const isMatch = await validUser.comparePassword(userData.password)
-		expect(isMatch).toBe(true)
+		const res = await supertest(app).post("/api/register").send({
+			username: "testuser4",
+			email: "test@test.com", // duplicate email
+			password: "123456",
+		})
+		expect(res.statusCode).toBe(409)
+		expect(res.body).toHaveProperty("error")
+	})
+
+	it("should not login with incorrect password", async () => {
+		const user = new User({
+			username: "testuser",
+			email: "test@test.com",
+			password: "123456",
+		})
+		await user.save()
+
+		const res = await supertest(app).post("/api/login").send({
+			email: "test@test.com",
+			password: "wrongpassword",
+		})
+		expect(res.statusCode).toBe(400)
+		expect(res.body).toHaveProperty("message")
 	})
 })

@@ -11,6 +11,16 @@ const registerUser = async (req: Request, res: Response) => {
 			return res.status(500)
 		}
 
+		const existingUserByUsername = await User.findOne({username})
+		if (existingUserByUsername) {
+			return res.status(409).json({error: "Username already exists"})
+		}
+
+		const existingUserByEmail = await User.findOne({email})
+		if (existingUserByEmail) {
+			return res.status(409).json({error: "Email already exists"})
+		}
+
 		const newUser: IUser = new User({username, email, password})
 
 		await newUser.save()

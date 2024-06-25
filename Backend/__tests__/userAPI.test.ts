@@ -3,6 +3,9 @@ import mongoose from "mongoose"
 import {MongoMemoryServer} from "mongodb-memory-server"
 import app from "../src/app"
 import User from "../src/models/User"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 let mongoServer: MongoMemoryServer
 
@@ -51,7 +54,7 @@ describe("User API Test", () => {
 			email: "test@test.com", // duplicate email
 			password: "123456",
 		})
-		expect(res.statusCode).toBe(500)
+		expect(res.statusCode).toBe(409)
 		expect(res.body).toHaveProperty("error")
 	})
 
